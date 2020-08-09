@@ -4,7 +4,9 @@
 
 ### Original ###
 data
+processed_data
 result
+
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
