@@ -28,7 +28,7 @@ def main():
 
     p_train = preprocess(train, feature_words)
     p_train["id"] = train["id"]
-    p_train["jobflag"] = train["jobflag"]
+    p_train["jobflag"] = train["jobflag"] - 1
     p_train.to_csv(os.path.join(root, "processed_data", "00_train.csv"), index=False)
 
     p_test = preprocess(test, feature_words)
