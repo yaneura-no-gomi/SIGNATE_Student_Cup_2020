@@ -7,7 +7,9 @@ data
 processed_data
 result
 model
-
+notebook/cache_dir
+notebook/runs
+notebook/wandb
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
