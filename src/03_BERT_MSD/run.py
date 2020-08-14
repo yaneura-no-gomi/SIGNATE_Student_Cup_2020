@@ -83,12 +83,12 @@ class Classifier(nn.Module):
         super().__init__()
 
         self.bert = AutoModel.from_pretrained(model_name)
-        self.msd = nn.ModuleList([nn.Dropout(0.1) for _ in range(8)])
+        self.msd = nn.ModuleList([nn.Dropout(0.5) for _ in range(8)])
         self.linear = nn.Linear(768, num_classes)
         nn.init.normal_(self.linear.weight, std=0.02)
         nn.init.zeros_(self.linear.bias)
 
-    def forward(self, input_ids, attention_mask, token_type_ids):
+    def forward(self, input_ids, attention_mask, token_type_ids, loss_func=None, labels=None):
         output, _ = self.bert(
             input_ids = input_ids,
             attention_mask = attention_mask,
@@ -100,14 +100,19 @@ class Classifier(nn.Module):
             if i == 0:
                 out = dropout(output)
                 out = self.linear(out)
+                if loss_func is not None:
+                    loss = loss_func(out, labels)
             else:
                 tmp_out = dropout(output)
                 tmp_out = self.linear(tmp_out)
-                out += tmp_out
-        
-        output = out / len(self.msd)
-    
-        return output
+                out = out + tmp_out
+                if loss_func is not None:
+                    loss = loss + loss_func(tmp_out, labels)
+
+        if loss_func is not None:
+            return out / len(self.msd), loss / len(self.msd)
+
+        return out / len(self.msd), None
 
 
 # training function
@@ -129,9 +134,9 @@ def train_fn(dataloader, model, criterion, optimizer, scheduler, device, epoch):
 
         optimizer.zero_grad()
 
-        outputs = model(input_ids, attention_mask, token_type_ids)
+        outputs, loss = model(input_ids, attention_mask, token_type_ids, loss_func=criterion, labels=labels)
         del input_ids, attention_mask, token_type_ids
-        loss = criterion(outputs, labels)  # 損失を計算
+        # loss = criterion(outputs, labels)  # 損失を計算
         _, preds = torch.max(outputs, 1)  # ラベルを予測
         del outputs
 
@@ -172,9 +177,9 @@ def eval_fn(dataloader, model, criterion, device, epoch):
             attention_mask, input_ids, labels, token_type_ids = batch.values()
             del batch
 
-            outputs = model(input_ids, attention_mask, token_type_ids)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, loss_func=criterion, labels=labels)
             del input_ids, attention_mask, token_type_ids
-            loss = criterion(outputs, labels)
+            # loss = criterion(outputs, labels)
             _, preds = torch.max(outputs, 1)
             del outputs
 
@@ -332,7 +337,7 @@ with torch.no_grad():
 
         outputs = []
         for model in models:
-            output = model(input_ids, attention_mask, token_type_ids)
+            output, _ = model(input_ids, attention_mask, token_type_ids)
             outputs.append(output)
 
         outputs = sum(outputs) / len(outputs)
