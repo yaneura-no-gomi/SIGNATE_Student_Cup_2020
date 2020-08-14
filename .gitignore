@@ -6,7 +6,10 @@
 data
 processed_data
 result
-model
+src/*/models
+src/*/figures
+src/*/output
+src/*/wandb
 notebook/cache_dir
 notebook/runs
 notebook/wandb
