@@ -1,5 +1,6 @@
 import collections
 import os
+import sys
 import random
 
 import matplotlib.pyplot as plt
@@ -15,6 +16,9 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import StratifiedKFold
 from tqdm.notebook import tqdm
 from transformers import AdamW, AutoModel, AutoTokenizer
+
+sys.path.append('../utils')
+from utils import check_submit_distribution
 
 """
 Add Softmax Layer
@@ -50,7 +54,7 @@ MODEL_NAME = 'bert-base-uncased'
 TRAIN_BATCH_SIZE = 32
 VALID_BATCH_SIZE = 128
 NUM_CLASSES = 4
-EPOCHS = 5
+EPOCHS = 20
 NUM_SPLITS = 5
 
 
@@ -356,6 +360,9 @@ with torch.no_grad():
 submit = pd.read_csv(os.path.join(data_dir, "submit_sample.csv"), names=["id", "labels"])
 submit["labels"] = final_output
 submit["labels"] = submit["labels"] + 1
+
+check_submit_distribution(submit)
+
 try:
     submit.to_csv("./output/submission_cv{}.csv".format(str(cv).replace(".", "")[:10]), index=False, header=False)
 except NameError:
