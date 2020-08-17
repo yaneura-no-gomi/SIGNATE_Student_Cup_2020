@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import train_test_split
 from tqdm.notebook import tqdm
 from transformers import AdamW, AutoModel, AutoTokenizer
 
@@ -46,23 +47,19 @@ MODEL_NAME = 'bert-base-uncased'
 TRAIN_BATCH_SIZE = 32
 VALID_BATCH_SIZE = 128
 NUM_CLASSES = 4
-EPOCHS = 20
+EPOCHS = 3
 NUM_SPLITS = 5
 
 
 # dataset
-def make_folded_df(csv_file, num_splits=5):
+def train_valid_split(csv_file):
     df = pd.read_csv(csv_file)
     df["jobflag"] = df["jobflag"] - 1
-    df["kfold"] = np.nan
     df = df.rename(columns={'jobflag': 'labels'})
-    label = df["labels"].tolist()
+    train, valid = train_test_split(df, test_size=0.2, random_state=SEED, stratify=df["labels"], shuffle=True)
 
-    skfold = StratifiedKFold(num_splits, shuffle=True, random_state=SEED)
-    for fold, (_, valid_indexes) in enumerate(skfold.split(range(len(label)), label)):
-        for i in valid_indexes:
-            df.iat[i,3] = fold
-    return df
+    return train, valid
+
 
 def make_dataset(df, tokenizer, device):
     dataset = nlp.Dataset.from_pandas(df)
@@ -203,33 +200,33 @@ def eval_fn(dataloader, model, criterion, device, epoch):
 
 def plot_training(train_losses, train_accs, train_f1s,
                   valid_losses, valid_accs, valid_f1s,
-                  epoch, fold):
+                  epoch):
     
     loss_df = pd.DataFrame({"Train":train_losses,
                             "Valid":valid_losses},
                         index=range(1, epoch+2))
     loss_ax = sns.lineplot(data=loss_df).get_figure()
-    loss_ax.savefig(f"./figures/loss_plot_fold={fold}.png", dpi=300)
+    loss_ax.savefig(f"./figures/loss_plot.png", dpi=300)
     loss_ax.clf()
 
     acc_df = pd.DataFrame({"Train":train_accs,
                            "Valid":valid_accs},
                           index=range(1, epoch+2))
     acc_ax = sns.lineplot(data=acc_df).get_figure()
-    acc_ax.savefig(f"./figures/acc_plot_fold={fold}.png", dpi=300)
+    acc_ax.savefig(f"./figures/acc_plot_.png", dpi=300)
     acc_ax.clf()
 
     f1_df = pd.DataFrame({"Train":train_f1s,
                           "Valid":valid_f1s},
                          index=range(1, epoch+2))
     f1_ax = sns.lineplot(data=f1_df).get_figure()
-    f1_ax.savefig(f"./figures/f1_plot_fold={fold}.png", dpi=300)
+    f1_ax.savefig(f"./figures/f1_plot.png", dpi=300)
     f1_ax.clf()
 
-def trainer(fold, df):
+def trainer(train, valid):
     
-    train_df = df[df.kfold != fold].reset_index(drop=True)
-    valid_df = df[df.kfold == fold].reset_index(drop=True)
+    train_df = train.reset_index(drop=True)
+    valid_df = valid.reset_index(drop=True)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
@@ -276,48 +273,30 @@ def trainer(fold, df):
 
         plot_training(train_losses, train_accs, train_f1s,
                       valid_losses, valid_accs, valid_f1s,
-                      epoch, fold)
+                      epoch)
         
         best_loss = valid_loss if valid_loss < best_loss else best_loss
         besl_acc = valid_acc if valid_acc > best_acc else best_acc
         if valid_f1 > best_f1:
             best_f1 = valid_f1
             print("model saving!", end="")
-            torch.save(model.state_dict(), MODELS_DIR + f"best_{MODEL_NAME}_{fold}.pth")
+            torch.save(model.state_dict(), MODELS_DIR + f"best_{MODEL_NAME}.pth")
         print("\n")
 
     return best_f1
 
 
 # training
-df = make_folded_df(TRAIN_FILE, NUM_SPLITS)
-f1_scores = []
-for fold in range(NUM_SPLITS):
-    print(f"fold {fold}", "="*80)
-    f1 = trainer(fold, df)
-    f1_scores.append(f1)
-    print(f"<fold={fold}> best score: {f1}\n")
-
-cv = sum(f1_scores) / len(f1_scores)
-print(f"CV: {cv}")
-
-lines = ""
-for i, f1 in enumerate(f1_scores):
-    line = f"fold={i}: {f1}\n"
-    lines += line
-lines += f"CV    : {cv}"
-with open(f"./result/{MODEL_NAME}_result.txt", mode='w') as f:
-    f.write(lines)
+train, valid = train_valid_split(TRAIN_FILE)
+f1 = trainer(train, valid)
+print(f"valid score: {f1}\n")
 
 
 # inference
-models = []
-for fold in range(NUM_SPLITS):
-    model = Classifier(MODEL_NAME)
-    model.load_state_dict(torch.load(MODELS_DIR + f"best_{MODEL_NAME}_{fold}.pth"))
-    model.to(DEVICE)
-    model.eval()
-    models.append(model)
+model = Classifier(MODEL_NAME)
+model.load_state_dict(torch.load(MODELS_DIR + f"best_{MODEL_NAME}.pth"))
+model.to(DEVICE)
+model.eval()
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 test_df = pd.read_csv(TEST_FILE)
@@ -329,22 +308,15 @@ test_dataloader = torch.utils.data.DataLoader(
 with torch.no_grad():
     progress = tqdm(test_dataloader, total=len(test_dataloader))
     final_output = []
-
     for batch in progress:
         progress.set_description("<Test>")
 
         attention_mask, input_ids, labels, token_type_ids = batch.values()
 
-        outputs = []
-        for model in models:
-            output, _ = model(input_ids, attention_mask, token_type_ids)
-            outputs.append(output)
-
-        outputs = sum(outputs) / len(outputs)
-        outputs = torch.softmax(outputs, dim=1).cpu().detach().tolist()
-        outputs = np.argmax(outputs, axis=1)
-
-        final_output.extend(outputs)
+        output, _ = model(input_ids, attention_mask, token_type_ids)
+        output = torch.softmax(output, dim=1).cpu().detach().tolist()
+        output = np.argmax(output, axis=1)
+        final_output.extend(output)
 
 submit = pd.read_csv(os.path.join(data_dir, "submit_sample.csv"), names=["id", "labels"])
 submit["labels"] = final_output
