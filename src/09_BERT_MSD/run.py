@@ -21,7 +21,7 @@ sys.path.append("../utils")
 from utils import check_submit_distribution, class_augmentation
 
 """
-    Under Sampling validation data
+    Use Augmented train data
 """
 
 # seeds
@@ -395,7 +395,8 @@ def trainer(fold, df):
     model = Classifier(MODEL_NAME, num_classes=NUM_CLASSES)
     model = model.to(DEVICE)
 
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([10, 10, 1, 50], dtype=torch.float).to(DEVICE))
     optimizer = AdamW(model.parameters(), lr=2e-5)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100000, gamma=1.0)
     # ダミーのスケジューラー
@@ -503,7 +504,6 @@ with torch.no_grad():
 
         outputs = sum(outputs) / len(outputs)
         outputs = torch.softmax(outputs, dim=1).cpu().detach().tolist()
-        # TODO: 加重平均を取る
         outputs = np.argmax(outputs, axis=1)
 
         final_output.extend(outputs)
