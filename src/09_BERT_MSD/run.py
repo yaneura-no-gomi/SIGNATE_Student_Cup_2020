@@ -395,8 +395,9 @@ def trainer(fold, df):
     model = Classifier(MODEL_NAME, num_classes=NUM_CLASSES)
     model = model.to(DEVICE)
 
+    # TODO: weightを調整
     # criterion = nn.CrossEntropyLoss()
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([10, 10, 1, 50], dtype=torch.float).to(DEVICE))
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([1, 10, 1, 1], dtype=torch.float).to(DEVICE))
     optimizer = AdamW(model.parameters(), lr=2e-5)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100000, gamma=1.0)
     # ダミーのスケジューラー
