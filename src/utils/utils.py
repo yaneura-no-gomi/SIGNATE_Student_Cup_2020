@@ -138,4 +138,4 @@ def text_augmentation(text, replaced_dict):
 
 if __name__ == "__main__":
     check_submit_distribution(pd.read_csv("../../src/07_BERT_MSD/output/submission_cv0619546447.csv"))
-    check_submit_distribution(pd.read_csv("../../src/08_BERT_MSD/output/submission_cv0578829134.csv"))
+    check_submit_distribution(pd.read_csv("../../src/08_BERT_MSD/output/submission_cv0614341115.csv"))

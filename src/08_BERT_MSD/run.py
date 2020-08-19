@@ -21,7 +21,7 @@ sys.path.append("../utils")
 from utils import check_submit_distribution, class_augmentation
 
 """
-    Use Augmented train data
+    Under Sampling validation data
 """
 
 # seeds
