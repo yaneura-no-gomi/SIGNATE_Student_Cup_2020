@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from nltk.corpus import stopwords, wordnet
 from tqdm import tqdm
+from googletrans import Translator
 
 nltk.download('wordnet')
 
@@ -27,7 +28,8 @@ def check_submit_distribution(df: pd.DataFrame):
     print(true_dis)
 
 
-def class_augmentation(df, target_job, replace_num, aug_num):
+# Augmentation by synonym
+def class_augmentation_synonym(df, target_job, replace_num, aug_num):
     df = df[df["labels"] == target_job]
     augmented_df = df.loc[:, ["description", "labels", "kfold"]].copy()
 
@@ -35,7 +37,7 @@ def class_augmentation(df, target_job, replace_num, aug_num):
         for d, j, k in zip(df["description"], df["labels"], df["kfold"]):
             if len(augmented_df) < aug_num:
                 replaced_dict = synonym_replace(d, n=replace_num)
-                new_d = text_augmentation(d, replaced_dict)
+                new_d = replace_word(d, replaced_dict)
                 tmp = pd.DataFrame({
                     "description": [new_d],
                     "labels": [j],
@@ -121,7 +123,7 @@ def get_synonyms(word):
     return list(synonyms)
 
 
-def text_augmentation(text, replaced_dict):
+def replace_word(text, replaced_dict):
     text = text.lower()
     words = text.split(' ')
     new_words = words.copy()
@@ -135,6 +137,54 @@ def text_augmentation(text, replaced_dict):
         new_text += nw + ' '
     return new_text[:-1]
 
+
+# Augmentation by retransration
+def class_augmentation_retranslation(df, target_job, aug_num):
+    """Augmentation by retransration
+
+    Args:
+        df (pd.DataFrame): train data
+        target_job (int): labels [0, 3]
+        aug_num (int): the number to increase
+
+    Returns:
+        [pd.DataFrame]: Augmented DataFrame
+    """
+
+    # 'es', 'fr', 'de', 'ja'で対応できる数のaug_num
+    assert aug_num >= len(df) * 4
+
+    random.seed(42)
+    translator = Translator()
+    languages = ['es', 'fr', 'de', 'ja']
+
+    df = df[df["labels"] == target_job]
+    augmented_df = df.loc[:, ["description", "labels", "kfold"]].copy()
+
+    # TODO:
+    # dfをランダムに並び替えて上から順に翻訳＆Augmentation
+    # すべて選択したらまたランダムに並び替えて上から順に、言語を変えてAugmentation
+    trans_target = list(df.index)
+    trans_target = random.shuffle(df.index)
+    idx = 0
+    for i in range(aug_num+1):
+        if idx < len(df):
+            # 翻訳
+            translated = translator.translate(df.loc[trans_target[idx], "description"], dest=languages[i // len(df)]).text
+            re_translated = translator.translate(translated, dest="en").text
+            tmp = pd.DataFrame({
+                "description": [re_translated],
+                "labels": [df.loc[trans_target[idx], "labels"]],
+                "kfold": [df.loc[trans_target[idx], "kfold"]]
+            })
+            augmented_df = pd.concat([augmented_df, tmp])
+            idx += 1
+
+        else:
+            random.shuffle(trans_target)
+            idx = 0
+    
+    return augmented_df
 
 if __name__ == "__main__":
     check_submit_distribution(pd.read_csv("../../src/07_BERT_MSD/output/submission_cv0619546447.csv"))
