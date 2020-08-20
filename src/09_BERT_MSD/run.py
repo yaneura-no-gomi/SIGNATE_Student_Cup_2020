@@ -18,7 +18,7 @@ from tqdm import tqdm
 from transformers import AdamW, AutoModel, AutoTokenizer
 
 sys.path.append("../utils")
-from utils import check_submit_distribution, class_augmentation
+from utils import check_submit_distribution, class_augmentation_synonym
 
 """
     Use Augmented train data

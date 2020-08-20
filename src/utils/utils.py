@@ -151,23 +151,20 @@ def class_augmentation_retranslation(df, target_job, aug_num):
         [pd.DataFrame]: Augmented DataFrame
     """
 
+    df = df[df["labels"] == target_job]
+
     # 'es', 'fr', 'de', 'ja'で対応できる数のaug_num
-    assert aug_num >= len(df) * 4
+    assert aug_num < len(df) * 4
 
     random.seed(42)
     translator = Translator()
     languages = ['es', 'fr', 'de', 'ja']
 
-    df = df[df["labels"] == target_job]
     augmented_df = df.loc[:, ["description", "labels", "kfold"]].copy()
-
-    # TODO:
-    # dfをランダムに並び替えて上から順に翻訳＆Augmentation
-    # すべて選択したらまたランダムに並び替えて上から順に、言語を変えてAugmentation
     trans_target = list(df.index)
-    trans_target = random.shuffle(df.index)
+    random.shuffle(trans_target)
     idx = 0
-    for i in range(aug_num+1):
+    for i in tqdm(range(aug_num+1)):
         if idx < len(df):
             # 翻訳
             translated = translator.translate(df.loc[trans_target[idx], "description"], dest=languages[i // len(df)]).text
@@ -183,9 +180,10 @@ def class_augmentation_retranslation(df, target_job, aug_num):
         else:
             random.shuffle(trans_target)
             idx = 0
-    
+
     return augmented_df
 
 if __name__ == "__main__":
-    check_submit_distribution(pd.read_csv("../../src/07_BERT_MSD/output/submission_cv0619546447.csv"))
     check_submit_distribution(pd.read_csv("../../src/08_BERT_MSD/output/submission_cv0614341115.csv"))
+    check_submit_distribution(pd.read_csv("../../src/09_BERT_MSD/output/1_10_1_1_submission_cv0587540339.csv"))
+    check_submit_distribution(pd.read_csv("../../src/10_BERT_MSD/output/submission_cv0601808290.csv"))
