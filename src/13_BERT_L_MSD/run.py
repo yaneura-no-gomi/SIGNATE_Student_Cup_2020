@@ -53,10 +53,10 @@ TRAIN_FILE = os.path.join(data_dir, "train.csv")
 TEST_FILE = os.path.join(data_dir, "test.csv")
 MODELS_DIR = "./models/"
 MODEL_NAME = "bert-large-uncased"
-TRAIN_BATCH_SIZE = 16
+TRAIN_BATCH_SIZE = 32
 VALID_BATCH_SIZE = 128
 NUM_CLASSES = 4
-EPOCHS = 20
+EPOCHS = 1
 NUM_SPLITS = 5
 
 
