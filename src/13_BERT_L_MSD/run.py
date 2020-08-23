@@ -48,15 +48,15 @@ if torch.cuda.is_available():
 data_dir = os.path.join(
     os.environ["HOME"], "Workspace/learning/signate/SIGNATE_Student_Cup_2020/data"
 )
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 TRAIN_FILE = os.path.join(data_dir, "train.csv")
 TEST_FILE = os.path.join(data_dir, "test.csv")
 MODELS_DIR = "./models/"
 MODEL_NAME = "bert-large-uncased"
-TRAIN_BATCH_SIZE = 64
+TRAIN_BATCH_SIZE = 32
 VALID_BATCH_SIZE = 128
 NUM_CLASSES = 4
-EPOCHS = 10
+EPOCHS = 1
 NUM_SPLITS = 5
 
 
@@ -375,6 +375,7 @@ def trainer(fold, df):
 
     model = Classifier(MODEL_NAME, num_classes=NUM_CLASSES)
     model = model.to(DEVICE)
+    # model = torch.nn.DataParallel(model)
 
     # BERTの重みを固定
     model_params = list(model.named_parameters())
