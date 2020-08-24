@@ -48,15 +48,15 @@ if torch.cuda.is_available():
 data_dir = os.path.join(
     os.environ["HOME"], "Workspace/learning/signate/SIGNATE_Student_Cup_2020/data"
 )
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 TRAIN_FILE = os.path.join(data_dir, "train.csv")
 TEST_FILE = os.path.join(data_dir, "test.csv")
 MODELS_DIR = "./models/"
-MODEL_NAME = "bert-large-uncased"
+MODEL_NAME = "bert-base-uncased"
 TRAIN_BATCH_SIZE = 32
 VALID_BATCH_SIZE = 128
 NUM_CLASSES = 4
-EPOCHS = 1
+EPOCHS = 10
 NUM_SPLITS = 5
 
 
@@ -163,7 +163,7 @@ class Classifier(nn.Module):
 
         self.bert = AutoModel.from_pretrained(model_name)
         self.msd = nn.ModuleList([nn.Dropout(0.5) for _ in range(8)])
-        self.linear = nn.Linear(1024, num_classes)
+        self.linear = nn.Linear(768, num_classes)
         nn.init.normal_(self.linear.weight, std=0.02)
         nn.init.zeros_(self.linear.bias)
 
@@ -375,7 +375,6 @@ def trainer(fold, df):
 
     model = Classifier(MODEL_NAME, num_classes=NUM_CLASSES)
     model = model.to(DEVICE)
-    # model = torch.nn.DataParallel(model)
 
     # BERTの重みを固定
     model_params = list(model.named_parameters())
@@ -402,7 +401,7 @@ def trainer(fold, df):
 
         # TODO: weightを調整
         # criterion = nn.CrossEntropyLoss()
-        criterion = nn.CrossEntropyLoss(weight=torch.tensor([1, 10, 1, 1], dtype=torch.float).to(DEVICE))
+        criterion = nn.CrossEntropyLoss(weight=torch.tensor([1, 1, 0.1, 1], dtype=torch.float).to(DEVICE))
         # ダミーのスケジューラー
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100000, gamma=1.0)
 

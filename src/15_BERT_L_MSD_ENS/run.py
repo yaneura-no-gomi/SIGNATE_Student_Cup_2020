@@ -53,10 +53,10 @@ TRAIN_FILE = os.path.join(data_dir, "train.csv")
 TEST_FILE = os.path.join(data_dir, "test.csv")
 MODELS_DIR = "./models/"
 MODEL_NAME = "bert-large-uncased"
-TRAIN_BATCH_SIZE = 32
+TRAIN_BATCH_SIZE = 16
 VALID_BATCH_SIZE = 128
 NUM_CLASSES = 4
-EPOCHS = 1
+EPOCHS = 10
 NUM_SPLITS = 5
 
 
@@ -501,19 +501,27 @@ with torch.no_grad():
 
         final_output.extend(outputs)
 
-final_output = hack(np.array(final_output))
+pred_labels = hack(np.array(final_output))
+final_output = np.array(final_output)
 
-submit = pd.read_csv(
+output = pd.read_csv(
     os.path.join(data_dir, "submit_sample.csv"), names=["id", "labels"]
 )
-submit["labels"] = final_output
-submit["labels"] = submit["labels"] + 1
-check_submit_distribution(submit)
+
+output["prob0"] = final_output[:, 0]
+output["prob1"] = final_output[:, 1]
+output["prob2"] = final_output[:, 2]
+output["prob3"] = final_output[:, 3]
+output["labels"] = pred_labels + 1
+ 
+print(final_output[:5, :])
+print(output)
+
+
 try:
-    submit.to_csv(
-        "./output/submission_cv{}.csv".format(str(cv).replace(".", "")[:10]),
-        index=False,
-        header=False,
+    output.to_csv(
+        "./output/output_cv{}.csv".format(str(cv).replace(".", "")[:10]),
+        index=False
     )
 except NameError:
-    submit.to_csv("./output/submission.csv", index=False, header=False)
+    output.to_csv("./output/output.csv", index=False, header=False)
